@@ -75,7 +75,7 @@ Camera access may not work when the file is opened directly using a `file://` UR
 
 ### Option 1: Open with a Local Development Server
 
-Place `flashbooth_updated.html` in a project folder, then start a local server.
+Place `flashbooth.html` in a project folder, then start a local server.
 
 For Python:
 
