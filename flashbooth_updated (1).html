@@ -1,0 +1,1207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flashbooth</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #1c1220;
+    --bg-2: #241726;
+    --panel: #2c1a2c;
+    --cream: #f6ecdd;
+    --cream-dim: #e4d9c6;
+    --amber: #e8a33d;
+    --amber-dim: #b97f2c;
+    --brick: #c4453b;
+    --ink: #1c1220;
+    --text: #ece3d8;
+    --text-dim: #b8aca0;
+    --radius-lg: 28px;
+    --radius-md: 16px;
+    --shadow-deep: 0 24px 60px rgba(0,0,0,0.55);
+    font-family: 'Space Grotesk', sans-serif;
+  }
+  *{ box-sizing: border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background:
+      radial-gradient(ellipse at 50% -10%, #3a2338 0%, var(--bg) 55%),
+      var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 0 0 80px;
+    overflow-x: hidden;
+  }
+  ::selection{ background: var(--amber); color: var(--ink); }
+  .hidden{ display:none !important; }
+
+  h1,h2,h3{ font-family:'Fraunces', serif; margin:0; }
+
+  /* ---------- marquee header ---------- */
+  .marquee{
+    text-align:center;
+    padding: 46px 20px 28px;
+    position: relative;
+  }
+  .marquee .bulbs{
+    display:flex; justify-content:center; gap:10px; margin-bottom:18px;
+  }
+  .marquee .bulbs span{
+    width:8px; height:8px; border-radius:50%;
+    background: var(--amber);
+    box-shadow: 0 0 10px 2px rgba(232,163,61,0.9);
+    animation: twinkle 2.4s ease-in-out infinite;
+  }
+  .marquee .bulbs span:nth-child(odd){ animation-delay: 0.6s; }
+  .marquee .bulbs span:nth-child(3n){ animation-delay: 1.2s; }
+  @keyframes twinkle{
+    0%,100%{ opacity: 1; }
+    50%{ opacity: 0.35; }
+  }
+  .marquee h1{
+    font-size: clamp(2.4rem, 6vw, 4rem);
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    color: var(--cream);
+    text-shadow: 0 0 18px rgba(232,163,61,0.35), 0 2px 0 rgba(0,0,0,0.4);
+  }
+  .marquee p{
+    margin-top: 10px;
+    color: var(--text-dim);
+    font-size: 0.98rem;
+    max-width: 480px;
+    margin-left:auto; margin-right:auto;
+  }
+
+  /* ---------- stage / booth ---------- */
+  .stage{ display:flex; justify-content:center; padding: 0 16px; }
+  .booth{
+    width: 100%;
+    max-width: 460px;
+    background: linear-gradient(180deg, #3a2438, var(--panel));
+    border-radius: var(--radius-lg);
+    padding: 18px;
+    box-shadow: var(--shadow-deep), inset 0 0 0 1px rgba(255,255,255,0.04);
+    position: relative;
+  }
+  .booth-lights{
+    display:flex; justify-content:space-between; padding: 2px 10px 14px;
+  }
+  .booth-lights span{
+    width:7px; height:7px; border-radius:50%;
+    background: var(--amber-dim);
+  }
+  .booth-lights span.on{
+    background: var(--amber);
+    box-shadow: 0 0 8px 2px rgba(232,163,61,0.8);
+  }
+
+  .screen-window{
+    position: relative;
+    width: 100%;
+    aspect-ratio: 3 / 4;
+    background: #000;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    box-shadow: inset 0 0 0 6px #140b16, inset 0 0 30px rgba(0,0,0,0.6);
+  }
+  #preview{
+    width:100%; height:100%; object-fit: cover;
+    transform: scaleX(-1);
+    transition: filter 0.15s ease;
+    display:block;
+  }
+  .camera-msg{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    text-align:center; padding: 24px; color: var(--text-dim); font-size:0.92rem; line-height:1.5;
+  }
+  .camera-msg button{
+    margin-top:14px;
+  }
+  .scanlines{
+    position:absolute; inset:0; pointer-events:none;
+    background: repeating-linear-gradient(180deg, rgba(0,0,0,0.08) 0px, rgba(0,0,0,0.08) 1px, transparent 2px, transparent 4px);
+    mix-blend-mode: multiply;
+    opacity: 0.5;
+  }
+  .flash{
+    position:absolute; inset:0; background:#fff; opacity:0; pointer-events:none;
+  }
+  .flash.pop{ animation: flashpop 0.4s ease-out; }
+  @keyframes flashpop{
+    0%{ opacity: 0.95; }
+    100%{ opacity: 0; }
+  }
+  .countdown{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    font-family:'Fraunces', serif; font-size: 6rem; color: var(--cream);
+    text-shadow: 0 0 30px rgba(0,0,0,0.8);
+    opacity:0; pointer-events:none;
+  }
+  .countdown.show{ animation: pulse 1s ease-in-out; opacity:1; }
+  @keyframes pulse{
+    0%{ transform: scale(1.5); opacity:0; }
+    30%{ transform: scale(1); opacity:1; }
+    100%{ transform: scale(1); opacity:1; }
+  }
+  .strip-progress{
+    position:absolute; top:10px; left:0; right:0;
+    display:flex; justify-content:center; gap:6px;
+    opacity:0;
+  }
+  .strip-progress.show{ opacity:1; }
+  .strip-progress i{
+    width:20px; height:5px; border-radius:3px; background: rgba(255,255,255,0.25);
+  }
+  .strip-progress i.done{ background: var(--amber); }
+
+  /* ---------- deck / controls ---------- */
+  .deck{ padding-top: 16px; }
+  .row-label{
+    font-size: 0.72rem; color: var(--text-dim); letter-spacing: 0.04em;
+    margin: 14px 2px 8px;
+  }
+  .swatches{
+    display:flex; gap:8px; overflow-x:auto; padding: 2px 2px 6px;
+    scrollbar-width: thin;
+  }
+  .swatches::-webkit-scrollbar{ height:5px; }
+  .swatches::-webkit-scrollbar-thumb{ background: var(--amber-dim); border-radius:3px; }
+
+  .swatch{
+    flex: 0 0 auto;
+    display:flex; flex-direction:column; align-items:center; gap:6px;
+    background:none; border:none; color: var(--text-dim); cursor:pointer;
+    font-family:'Space Grotesk'; font-size: 0.68rem;
+    padding: 4px;
+  }
+  .swatch .chip{
+    width:44px; height:44px; border-radius:50%;
+    border: 2px solid rgba(255,255,255,0.12);
+    background-size: cover; background-position:center;
+  }
+  .swatch.active .chip{ border-color: var(--amber); box-shadow: 0 0 0 3px rgba(232,163,61,0.25); }
+  .swatch.active{ color: var(--cream); }
+
+  .frame-swatch .chip{ border-radius: 8px; background-size: cover; background-position:center; }
+  .swatch .chip{ background-size: cover; background-position:center; }
+  .ratio-chip{
+    width:auto !important; height:34px; max-width:40px;
+    background: rgba(255,255,255,0.07) !important;
+    border-radius:4px !important;
+    display:flex;
+  }
+
+  .mode-toggle{
+    display:flex; background: rgba(0,0,0,0.25); border-radius: 999px; padding:4px; gap:4px;
+  }
+  .mode-toggle button{
+    flex:1; border:none; background:none; color: var(--text-dim);
+    padding: 9px 10px; border-radius: 999px; font-family:'Space Grotesk'; font-weight:600;
+    font-size: 0.82rem; cursor:pointer;
+  }
+  .mode-toggle button.active{ background: var(--amber); color: var(--ink); }
+
+  .controls-row{
+    display:flex; align-items:center; justify-content:center; gap:22px;
+    margin-top: 20px;
+  }
+  .icon-btn{
+    width:46px; height:46px; border-radius:50%; border:1px solid rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.05); color: var(--text); cursor:pointer;
+    display:flex; align-items:center; justify-content:center; font-size:1.1rem;
+  }
+  .icon-btn.active{ border-color: var(--amber); color: var(--amber); }
+
+  .shutter{
+    width:76px; height:76px; border-radius:50%;
+    background: radial-gradient(circle at 35% 30%, #fff, var(--cream) 45%, var(--amber) 100%);
+    border: 4px solid var(--ink);
+    box-shadow: 0 0 0 4px var(--amber-dim), var(--shadow-deep);
+    cursor:pointer;
+    position:relative;
+  }
+  .shutter:active{ transform: scale(0.94); }
+  .shutter:disabled{ opacity:0.5; cursor:not-allowed; }
+
+  /* ---------- gallery ---------- */
+  .gallery{ max-width: 980px; margin: 64px auto 0; padding: 0 20px; }
+  .gallery h2{
+    font-size: 1.6rem; color: var(--cream); text-align:center; font-weight:600;
+  }
+  .gallery .sub{ text-align:center; color: var(--text-dim); margin-top:6px; font-size:0.9rem; }
+
+  .empty-state{
+    text-align:center; color: var(--text-dim); padding: 50px 20px;
+    border: 1px dashed rgba(255,255,255,0.15); border-radius: var(--radius-md);
+    margin-top: 26px; font-size: 0.92rem;
+  }
+
+  .gallery-grid{
+    display:grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 22px; margin-top: 30px;
+  }
+  .print{
+    background: var(--cream);
+    border-radius: 6px;
+    padding: 8px 8px 14px;
+    box-shadow: 0 14px 30px rgba(0,0,0,0.45), 0 2px 0 rgba(255,255,255,0.05);
+    cursor: pointer;
+    transform: rotate(var(--tilt, 0deg));
+    transition: transform 0.2s ease;
+    position: relative;
+  }
+  .print:nth-child(3n){ --tilt: -2deg; }
+  .print:nth-child(3n+1){ --tilt: 1.5deg; }
+  .print:nth-child(3n+2){ --tilt: -1deg; }
+  .print:hover{ transform: rotate(0deg) translateY(-4px); }
+  .print img, .print canvas{
+    width:100%; display:block; border-radius: 2px; background:#000;
+    aspect-ratio: 3/4; object-fit: cover;
+  }
+  .live-pill{
+    position:absolute; top:16px; left:16px;
+    background: rgba(20,11,16,0.75); color: var(--amber);
+    font-size: 0.62rem; font-weight:700; letter-spacing:0.03em;
+    padding: 3px 8px; border-radius: 999px;
+    display:flex; align-items:center; gap:4px;
+  }
+  .live-pill::before{
+    content:""; width:6px; height:6px; border-radius:50%; background: var(--amber);
+  }
+  .print .cap{
+    text-align:center; color: #6b5d54; font-size: 0.72rem; margin-top: 8px;
+    font-family:'Fraunces', serif; font-style: italic;
+  }
+
+
+  /* ---------- strip settings / editor ---------- */
+  .strip-settings{
+    margin-top:14px; padding:12px; border:1px solid rgba(255,255,255,0.09);
+    border-radius:14px; background:rgba(0,0,0,0.16);
+  }
+  .strip-settings .row-label{ margin-top:0; }
+  .strip-options{ display:flex; gap:8px; flex-wrap:wrap; }
+  .strip-option{
+    border:1px solid rgba(255,255,255,0.14); background:rgba(255,255,255,0.05);
+    color:var(--text-dim); border-radius:10px; padding:9px 12px; cursor:pointer;
+    font:600 0.78rem 'Space Grotesk';
+  }
+  .strip-option.active{ background:var(--amber); color:var(--ink); border-color:var(--amber); }
+  .strip-design-chip{
+    width:48px !important; height:48px !important; border-radius:8px !important;
+  }
+  .editor-tools{
+    display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:12px;
+  }
+  .editor-tools label{ font-size:.75rem; color:#6b5d54; }
+  .editor-tools input[type=color]{ width:36px; height:30px; padding:2px; border:1px solid #c8bcae; border-radius:7px; }
+  .editor-tools input[type=range]{ width:100px; }
+  .editor-canvas-wrap{ background:#ddd2c4; padding:10px; border-radius:4px; margin-top:12px; }
+  #stripEditorCanvas{ width:100%; height:auto; display:block; background:#fff; touch-action:none; cursor:crosshair; }
+  .editor-help{ color:#6b5d54; font-size:.75rem; margin-top:8px; }
+
+  /* ---------- lightbox ---------- */
+  .lightbox{
+    position: fixed; inset:0; background: rgba(10,5,10,0.88);
+    display:flex; align-items:center; justify-content:center;
+    padding: 24px; z-index: 50;
+  }
+  .lightbox.hidden{ display:none; }
+  .lightbox-card{
+    background: var(--cream); border-radius: 8px; padding: 14px 14px 18px;
+    max-width: 420px; width:100%;
+    max-height: 90vh; overflow:auto;
+  }
+  .lightbox-card img, .lightbox-card canvas{
+    width:100%; border-radius:3px; display:block; background:#000;
+  }
+  .lightbox-actions{
+    display:flex; gap:10px; margin-top: 14px; flex-wrap:wrap;
+  }
+  .btn{
+    font-family:'Space Grotesk'; font-weight:600; font-size:0.82rem;
+    padding: 10px 16px; border-radius:999px; border:none; cursor:pointer;
+  }
+  .btn-primary{ background: var(--ink); color: var(--cream); }
+  .btn-ghost{ background: transparent; color: var(--ink); border:1px solid rgba(0,0,0,0.2); }
+  .btn-danger{ background: var(--brick); color: #fff; }
+  .close-x{
+    float:right; background:none; border:none; font-size:1.3rem; cursor:pointer; color: var(--ink);
+    line-height:1;
+  }
+
+  @media (max-width: 420px){
+    .controls-row{ gap:16px; }
+    .shutter{ width:66px; height:66px; }
+  }
+</style>
+</head>
+<body>
+
+  <header class="marquee">
+    <div class="bulbs">
+      <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+    </div>
+    <h1>Flashbooth</h1>
+    <p>Step up, strike a pose, and hold still &mdash; a little motion gets captured right before the flash, just like a Live Photo.</p>
+  </header>
+
+  <main class="stage">
+    <div class="booth">
+      <div class="booth-lights" id="boothLights"></div>
+
+      <div class="screen-window" id="screenWindow">
+        <video id="preview" autoplay playsinline muted></video>
+        <div class="scanlines"></div>
+        <div class="strip-progress" id="stripProgress">
+          <i></i><i></i><i></i><i></i>
+        </div>
+        <div class="countdown" id="countdown"></div>
+        <div class="flash" id="flash"></div>
+        <div class="camera-msg hidden" id="cameraMsg">
+          Flashbooth needs camera access to work.<br>Allow the permission prompt, or check your browser's site settings.
+          <br><button class="btn btn-primary" id="retryCamera">Try again</button>
+        </div>
+      </div>
+
+      <div class="deck">
+        <div class="mode-toggle">
+          <button id="modeSingle" class="active">Single Shot</button>
+          <button id="modeStrip">Photo Strip (4)</button>
+        </div>
+
+        <div class="strip-settings hidden" id="stripSettings">
+          <div class="row-label">Photos in strip</div>
+          <div class="strip-options" id="stripCountOptions">
+            <button class="strip-option" data-count="2">2 photos</button>
+            <button class="strip-option" data-count="3">3 photos</button>
+            <button class="strip-option active" data-count="4">4 photos</button>
+            <button class="strip-option" data-count="6">6 photos</button>
+          </div>
+          <div class="row-label">Strip design</div>
+          <div class="swatches" id="stripDesignSwatches"></div>
+        </div>
+
+        <div class="row-label">Filter</div>
+        <div class="swatches" id="filterSwatches"></div>
+
+        <div class="row-label">Frame</div>
+        <div class="swatches" id="frameSwatches"></div>
+
+        <div class="row-label">Size</div>
+        <div class="swatches" id="cropSwatches"></div>
+
+        <div class="controls-row">
+          <button class="icon-btn" id="mirrorToggle" title="Flip preview">&#8646;</button>
+          <button class="shutter" id="shutterBtn" title="Capture"></button>
+          <button class="icon-btn" id="soundToggle" title="Shutter sound">&#128266;</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <section class="gallery">
+    <h2>Your Prints</h2>
+    <p class="sub">Hover (or tap) a print with the live badge to watch the moment around it.</p>
+    <div id="emptyState" class="empty-state">No prints yet &mdash; step into the booth and hit the shutter.</div>
+    <div class="gallery-grid" id="galleryGrid"></div>
+  </section>
+
+  <div class="lightbox hidden" id="lightbox">
+    <div class="lightbox-card" id="lightboxCard"></div>
+  </div>
+
+
+  <div class="lightbox hidden" id="stripEditorModal">
+    <div class="lightbox-card">
+      <button class="close-x" id="editorClose">&times;</button>
+      <h3 style="color:#1c1220; margin-bottom:6px;">Customize your strip</h3>
+      <div style="color:#6b5d54; font-size:.82rem;">Draw directly on the strip, then save your finished design.</div>
+      <div class="editor-canvas-wrap">
+        <canvas id="stripEditorCanvas"></canvas>
+      </div>
+      <div class="editor-tools">
+        <label>Color <input id="doodleColor" type="color" value="#c4453b"></label>
+        <label>Brush <input id="doodleSize" type="range" min="2" max="28" value="7"></label>
+        <button class="btn btn-ghost" id="editorUndo">Undo</button>
+        <button class="btn btn-ghost" id="editorClear">Clear doodles</button>
+      </div>
+      <div class="editor-help">Use your mouse or finger to draw. Clearing removes only doodles, not the photos.</div>
+      <div class="lightbox-actions">
+        <button class="btn btn-primary" id="editorSave">Save Customized Strip</button>
+        <button class="btn btn-ghost" id="editorSaveOriginal">Save Without Doodles</button>
+      </div>
+    </div>
+  </div>
+
+  <canvas id="captureCanvas" width="720" height="960" style="display:none"></canvas>
+  <canvas id="bufferCanvas" width="240" height="320" style="display:none"></canvas>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ================= CONFIG ================= */
+  let STILL_W = 720, STILL_H = 960;
+  let BUF_W = 240, BUF_H = 320;
+  const BUFFER_TICK_MS = 150;
+
+  const CROPS = [
+    { id:"portrait", label:"3:4",  w:720,  h:960 },
+    { id:"square",   label:"1:1",  w:840,  h:840 },
+    { id:"tall",     label:"9:16", w:720,  h:1280 },
+    { id:"classic",  label:"4:3",  w:960,  h:720 }
+  ];
+  let selectedCrop = CROPS[0];
+  const LIVE_PRE_MS = 2500;   // how much "before" motion to keep
+  const LIVE_POST_MS = 1500;  // how much "after" motion to keep
+  const BUFFER_KEEP_MS = LIVE_PRE_MS + 800; // rolling window we keep at all times
+
+  const FILTERS = [
+    { id:"normal",   label:"Normal",   css:"none" },
+    { id:"bw",        label:"B&W",      css:"grayscale(1) contrast(1.05)" },
+    { id:"sepia",     label:"Sepia",    css:"sepia(0.75) contrast(1.05) saturate(1.1)" },
+    { id:"vintage",   label:"Vintage",  css:"sepia(0.35) contrast(0.92) brightness(1.06) saturate(1.25)" },
+    { id:"cool",      label:"Cool",     css:"hue-rotate(15deg) saturate(1.15) brightness(1.04)" },
+    { id:"warm",      label:"Warm",     css:"sepia(0.18) saturate(1.3) hue-rotate(-8deg)" },
+    { id:"vivid",     label:"Vivid",    css:"saturate(1.6) contrast(1.15)" },
+    { id:"dramatic",  label:"Dramatic", css:"contrast(1.45) brightness(0.88) saturate(0.75)" }
+  ];
+
+
+  const STRIP_DESIGNS = [
+    { id:"cream", label:"Cream", bg:"#f6ecdd", ink:"#1c1220", accent:"#c4453b" },
+    { id:"midnight", label:"Midnight", bg:"#17121d", ink:"#f6ecdd", accent:"#e8a33d" },
+    { id:"blush", label:"Blush", bg:"#f3d5d8", ink:"#542d3a", accent:"#b34e68" },
+    { id:"sage", label:"Sage", bg:"#dce5d5", ink:"#304533", accent:"#718b62" },
+    { id:"sunset", label:"Sunset", bg:"#f2b47e", ink:"#54261e", accent:"#c4453b" },
+    { id:"lavender", label:"Lavender", bg:"#ddd4ed", ink:"#3f3157", accent:"#8870b8" }
+  ];
+
+  const FRAMES = [
+    { id:"none",     label:"None",    bg:null },
+    { id:"classic",  label:"Classic", bg:"#f6ecdd" },
+    { id:"polaroid", label:"Polaroid",bg:"#fdfbf6" },
+    { id:"film",     label:"Film",    bg:"#141014" },
+    { id:"noir",     label:"Noir",    bg:"#141014" },
+    { id:"scallop",  label:"Scallop", bg:"#f6ecdd" }
+  ];
+
+  /* ================= STATE ================= */
+  let stream = null;
+  let currentFilter = "normal";
+  let currentFrame = "none";
+  let mirrored = true;
+  let soundOn = true;
+  let mode = "single"; // or "strip"
+  let stripCount = 4;
+  let stripDesign = "cream";
+  let currentStripCanvas = null;
+  let doodleHistory = [];
+
+  let busy = false;
+  let rollingBuffer = []; // {url, t}
+  let bufferTimer = null;
+  let photos = []; // gallery entries
+
+  const video = document.getElementById("preview");
+  const captureCanvas = document.getElementById("captureCanvas");
+  const captureCtx = captureCanvas.getContext("2d");
+  const bufferCanvas = document.getElementById("bufferCanvas");
+  const bufferCtx = bufferCanvas.getContext("2d");
+  const flashEl = document.getElementById("flash");
+  const countdownEl = document.getElementById("countdown");
+  const shutterBtn = document.getElementById("shutterBtn");
+  const stripProgress = document.getElementById("stripProgress");
+  const cameraMsg = document.getElementById("cameraMsg");
+  const galleryGrid = document.getElementById("galleryGrid");
+  const emptyState = document.getElementById("emptyState");
+
+  /* ================= AUDIO (synthesized shutter click) ================= */
+  let audioCtx = null;
+  function playShutterSound(){
+    if(!soundOn) return;
+    try{
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      const t0 = audioCtx.currentTime;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = "square";
+      osc.frequency.setValueAtTime(1200, t0);
+      osc.frequency.exponentialRampToValueAtTime(300, t0 + 0.08);
+      gain.gain.setValueAtTime(0.18, t0);
+      gain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.09);
+      osc.connect(gain).connect(audioCtx.destination);
+      osc.start(t0); osc.stop(t0 + 0.1);
+    }catch(e){ /* ignore audio errors */ }
+  }
+
+  /* ================= BOOTH BULB LIGHTS ================= */
+  (function initLights(){
+    const wrap = document.getElementById("boothLights");
+    for(let i=0;i<12;i++){
+      const s = document.createElement("span");
+      wrap.appendChild(s);
+    }
+    let i = 0;
+    setInterval(()=>{
+      [...wrap.children].forEach((s,idx)=> s.classList.toggle("on", idx % 3 === (i % 3)));
+      i++;
+    }, 450);
+  })();
+
+  /* ================= SWATCH UI ================= */
+  const filterChipCss = {
+    normal: "linear-gradient(135deg,#cbb7a3,#8a7867)",
+    bw: "linear-gradient(135deg,#f4f4f4,#3a3a3a)",
+    sepia: "linear-gradient(135deg,#d9b382,#7a4f28)",
+    vintage: "linear-gradient(135deg,#e3c79a,#8f6a4a)",
+    cool: "linear-gradient(135deg,#a9d6d1,#4f7f8a)",
+    warm: "linear-gradient(135deg,#eec48a,#c4653b)",
+    vivid: "linear-gradient(135deg,#ff8fa3,#5b9dff)",
+    dramatic: "linear-gradient(135deg,#4a3f4a,#0f0c10)"
+  };
+  const frameChipCss = {
+    none: "repeating-linear-gradient(45deg,#3a2c3a,#3a2c3a 4px,#2a1f2a 4px,#2a1f2a 8px)",
+    classic: "linear-gradient(#f6ecdd,#f6ecdd) center/70% 70% no-repeat, #d8c9ae",
+    polaroid: "linear-gradient(180deg,#fff 0 65%, #fdfbf6 65%)",
+    film: "repeating-linear-gradient(180deg,#141014 0 4px,#f6ecdd 4px 6px)",
+    noir: "linear-gradient(#141014,#141014) center/70% 70% no-repeat, #3a3a3a",
+    scallop: "radial-gradient(circle at 50% 120%, transparent 60%, #f6ecdd 61%), #d8c9ae"
+  };
+
+  const filterChipEls = {};
+  const frameChipEls = {};
+
+  const filterSwatchesEl = document.getElementById("filterSwatches");
+  FILTERS.forEach(f=>{
+    const b = document.createElement("button");
+    b.className = "swatch" + (f.id===currentFilter ? " active":"");
+    b.innerHTML = `<span class="chip" style="background:${filterChipCss[f.id]}"></span><span>${f.label}</span>`;
+    b.addEventListener("click", ()=>{
+      currentFilter = f.id;
+      video.style.filter = f.css;
+      [...filterSwatchesEl.children].forEach(c=>c.classList.remove("active"));
+      b.classList.add("active");
+      refreshThumbnails();
+    });
+    filterSwatchesEl.appendChild(b);
+    filterChipEls[f.id] = b.querySelector(".chip");
+  });
+
+  const frameSwatchesEl = document.getElementById("frameSwatches");
+  FRAMES.forEach(f=>{
+    const b = document.createElement("button");
+    b.className = "swatch frame-swatch" + (f.id===currentFrame ? " active":"");
+    b.innerHTML = `<span class="chip" style="background:${frameChipCss[f.id]}"></span><span>${f.label}</span>`;
+    b.addEventListener("click", ()=>{
+      currentFrame = f.id;
+      [...frameSwatchesEl.children].forEach(c=>c.classList.remove("active"));
+      b.classList.add("active");
+      refreshThumbnails();
+    });
+    frameSwatchesEl.appendChild(b);
+    frameChipEls[f.id] = b.querySelector(".chip");
+  });
+
+  const cropSwatchesEl = document.getElementById("cropSwatches");
+  CROPS.forEach(c=>{
+    const b = document.createElement("button");
+    b.className = "swatch" + (c.id===selectedCrop.id ? " active":"");
+    b.innerHTML = `<span class="chip ratio-chip" style="aspect-ratio:${c.w}/${c.h}"></span><span>${c.label}</span>`;
+    b.addEventListener("click", ()=>{
+      selectedCrop = c;
+      [...cropSwatchesEl.children].forEach(x=>x.classList.remove("active"));
+      b.classList.add("active");
+      applyCrop(c);
+    });
+    cropSwatchesEl.appendChild(b);
+  });
+
+
+  /* ================= STRIP SETTINGS ================= */
+  const stripSettings = document.getElementById("stripSettings");
+  const stripCountOptions = document.getElementById("stripCountOptions");
+  const stripDesignSwatches = document.getElementById("stripDesignSwatches");
+
+  function selectedStripDesign(){
+    return STRIP_DESIGNS.find(d => d.id === stripDesign) || STRIP_DESIGNS[0];
+  }
+
+  STRIP_DESIGNS.forEach(d=>{
+    const b = document.createElement("button");
+    b.className = "swatch" + (d.id === stripDesign ? " active" : "");
+    b.innerHTML = `<span class="chip strip-design-chip" style="background:${d.bg}; box-shadow:inset 0 0 0 8px ${d.accent}"></span><span>${d.label}</span>`;
+    b.addEventListener("click", ()=>{
+      stripDesign = d.id;
+      [...stripDesignSwatches.children].forEach(x=>x.classList.remove("active"));
+      b.classList.add("active");
+    });
+    stripDesignSwatches.appendChild(b);
+  });
+
+  [...stripCountOptions.querySelectorAll("button")].forEach(b=>{
+    b.addEventListener("click", ()=>{
+      stripCount = Number(b.dataset.count);
+      [...stripCountOptions.children].forEach(x=>x.classList.remove("active"));
+      b.classList.add("active");
+      modeStripBtn.textContent = `Photo Strip (${stripCount})`;
+    });
+  });
+
+  /* ================= MODE TOGGLE ================= */
+  const modeSingleBtn = document.getElementById("modeSingle");
+  const modeStripBtn = document.getElementById("modeStrip");
+  modeSingleBtn.addEventListener("click", ()=>{
+    mode = "single";
+    modeSingleBtn.classList.add("active");
+    modeStripBtn.classList.remove("active");
+    stripSettings.classList.add("hidden");
+  });
+  modeStripBtn.addEventListener("click", ()=>{
+    mode = "strip";
+    modeStripBtn.classList.add("active");
+    modeSingleBtn.classList.remove("active");
+    stripSettings.classList.remove("hidden");
+  });
+
+  /* ================= MIRROR + SOUND TOGGLES ================= */
+  const mirrorBtn = document.getElementById("mirrorToggle");
+  mirrorBtn.classList.add("active");
+  mirrorBtn.addEventListener("click", ()=>{
+    mirrored = !mirrored;
+    video.style.transform = mirrored ? "scaleX(-1)" : "scaleX(1)";
+    mirrorBtn.classList.toggle("active", mirrored);
+    refreshThumbnails();
+  });
+  const soundBtn = document.getElementById("soundToggle");
+  soundBtn.classList.add("active");
+  soundBtn.addEventListener("click", ()=>{
+    soundOn = !soundOn;
+    soundBtn.classList.toggle("active", soundOn);
+    soundBtn.innerHTML = soundOn ? "&#128266;" : "&#128263;";
+  });
+
+  /* ================= CROP / SIZE ================= */
+  const screenWindowEl = document.getElementById("screenWindow");
+  function applyCrop(c){
+    STILL_W = c.w; STILL_H = c.h;
+    captureCanvas.width = STILL_W; captureCanvas.height = STILL_H;
+    const maxDim = 260;
+    const factor = maxDim / Math.max(STILL_W, STILL_H);
+    BUF_W = Math.round(STILL_W * factor);
+    BUF_H = Math.round(STILL_H * factor);
+    bufferCanvas.width = BUF_W; bufferCanvas.height = BUF_H;
+    screenWindowEl.style.aspectRatio = `${STILL_W} / ${STILL_H}`;
+    rollingBuffer = []; // old buffered frames don't match the new aspect ratio
+  }
+  applyCrop(selectedCrop);
+
+  /* ================= LIVE THUMBNAILS (real frame/filter previews) ================= */
+  const thumbCanvas = document.createElement("canvas");
+  thumbCanvas.width = 110; thumbCanvas.height = 110;
+  const thumbCtx = thumbCanvas.getContext("2d");
+
+  function drawFilterThumb(filterCss){
+    thumbCtx.save();
+    thumbCtx.clearRect(0,0,110,110);
+    thumbCtx.filter = filterCss;
+    if(mirrored){ thumbCtx.translate(110,0); thumbCtx.scale(-1,1); }
+    drawCoverVideo(thumbCtx,110,110);
+    thumbCtx.restore();
+    return thumbCanvas.toDataURL("image/jpeg", 0.6);
+  }
+  function drawFrameThumb(frameId){
+    thumbCtx.clearRect(0,0,110,110);
+    paintFrame(thumbCtx,110,110,frameId);
+    return thumbCanvas.toDataURL("image/jpeg", 0.6);
+  }
+  let thumbTimer = null;
+  function refreshThumbnails(){
+    if(!stream || video.readyState < 2) return;
+    FILTERS.forEach(f=>{
+      filterChipEls[f.id].style.backgroundImage = `url(${drawFilterThumb(f.css)})`;
+    });
+    FRAMES.forEach(f=>{
+      if(f.id === "none") return; // keep the dark diagonal swatch for "None"
+      frameChipEls[f.id].style.backgroundImage = `url(${drawFrameThumb(f.id)})`;
+    });
+  }
+
+  /* ================= CAMERA INIT ================= */
+  async function initCamera(){
+    try{
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "user", width:{ideal:1280}, height:{ideal:960} },
+        audio: false
+      });
+      video.srcObject = stream;
+      cameraMsg.classList.add("hidden");
+      startRollingBuffer();
+      video.addEventListener("loadedmetadata", ()=>{
+        refreshThumbnails();
+        if(thumbTimer) clearInterval(thumbTimer);
+        thumbTimer = setInterval(refreshThumbnails, 2000);
+      }, { once:true });
+    }catch(err){
+      cameraMsg.classList.remove("hidden");
+      console.error("Camera error:", err);
+    }
+  }
+  document.getElementById("retryCamera").addEventListener("click", initCamera);
+  initCamera();
+
+  /* ================= ROLLING LIVE-PHOTO BUFFER ================= */
+  function startRollingBuffer(){
+    if(bufferTimer) clearInterval(bufferTimer);
+    bufferTimer = setInterval(()=>{
+      if(!stream || video.readyState < 2) return;
+      bufferCtx.save();
+      bufferCtx.filter = FILTERS.find(f=>f.id===currentFilter).css;
+      if(mirrored){
+        bufferCtx.translate(BUF_W,0);
+        bufferCtx.scale(-1,1);
+      }
+      drawCoverVideo(bufferCtx, BUF_W, BUF_H);
+      bufferCtx.restore();
+      const url = bufferCanvas.toDataURL("image/jpeg", 0.55);
+      const t = Date.now();
+      rollingBuffer.push({ url, t });
+      const cutoff = t - BUFFER_KEEP_MS - LIVE_POST_MS - 500;
+      while(rollingBuffer.length && rollingBuffer[0].t < cutoff) rollingBuffer.shift();
+    }, BUFFER_TICK_MS);
+  }
+
+  function drawCoverVideo(ctx, w, h){
+    const vw = video.videoWidth || 4, vh = video.videoHeight || 3;
+    const scale = Math.max(w/vw, h/vh);
+    const dw = vw*scale, dh = vh*scale;
+    const dx = (w-dw)/2, dy = (h-dh)/2;
+    ctx.drawImage(video, dx, dy, dw, dh);
+  }
+
+  /* ================= FRAME DRAWING (baked into stills) ================= */
+  function paintFrame(ctx, w, h, frameId){
+    const f = FRAMES.find(x=>x.id===frameId);
+    if(!f || f.id === "none"){
+      ctx.save();
+      ctx.filter = FILTERS.find(x=>x.id===currentFilter).css;
+      if(mirrored){ ctx.translate(w,0); ctx.scale(-1,1); }
+      drawCoverVideo(ctx, w, h);
+      ctx.restore();
+      return;
+    }
+    // all decoration constants below were tuned against a 720px-min-dimension
+    // canvas; `scale` lets the same frame look right at any crop size or at
+    // tiny thumbnail sizes.
+    const scale = Math.min(w,h) / 720;
+    let mL,mR,mT,mB;
+    switch(f.id){
+      case "classic":  mL=mR=mT=mB = 26*scale; break;
+      case "polaroid": mL=mR=mT = 20*scale; mB = 110*scale; break;
+      case "film":     mL=mR = 34*scale; mT = 20*scale; mB = 14*scale; break;
+      case "noir":     mL=mR=mT=mB = 24*scale; break;
+      case "scallop":  mL=mR=mT=mB = 24*scale; break;
+      default:         mL=mR=mT=mB = 0;
+    }
+    ctx.fillStyle = f.bg;
+    ctx.fillRect(0,0,w,h);
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(mL, mT, w-mL-mR, h-mT-mB);
+    ctx.clip();
+    ctx.filter = FILTERS.find(x=>x.id===currentFilter).css;
+    ctx.translate(mL, mT);
+    if(mirrored){ ctx.translate(w-mL-mR,0); ctx.scale(-1,1); }
+    drawCoverVideo(ctx, w-mL-mR, h-mT-mB);
+    ctx.restore();
+
+    // decorations per frame type
+    if(f.id === "polaroid" && Math.min(w,h) > 150){
+      ctx.fillStyle = "#7a6a58";
+      ctx.font = `italic ${24*scale}px Georgia, serif`;
+      ctx.textAlign = "center";
+      ctx.fillText(new Date().toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"}), w/2, h-40*scale);
+    }
+    if(f.id === "film"){
+      ctx.fillStyle = "#f6ecdd";
+      const holeR = 6*scale, gap = 26*scale, holeW = 14*scale, holeRad = 3*scale;
+      for(let y = gap; y < h-gap/2; y += gap){
+        ctx.beginPath(); ctx.roundRect(10*scale, y, holeW, holeR*1.6, holeRad); ctx.fill();
+        ctx.beginPath(); ctx.roundRect(w-24*scale, y, holeW, holeR*1.6, holeRad); ctx.fill();
+      }
+    }
+    if(f.id === "noir"){
+      ctx.strokeStyle = "rgba(232,163,61,0.7)";
+      ctx.lineWidth = 2*scale;
+      ctx.strokeRect(mL-8*scale, mT-8*scale, w-mL-mR+16*scale, h-mT-mB+16*scale);
+    }
+    if(f.id === "scallop"){
+      ctx.fillStyle = f.bg;
+      const r = 9*scale;
+      for(let x = mL; x < w-mR; x += r*2){
+        ctx.beginPath(); ctx.arc(x, mT, r, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(x, h-mB, r, 0, Math.PI*2); ctx.fill();
+      }
+      for(let y = mT; y < h-mB; y += r*2){
+        ctx.beginPath(); ctx.arc(mL, y, r, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(w-mR, y, r, 0, Math.PI*2); ctx.fill();
+      }
+    }
+  }
+
+  /* ================= COUNTDOWN + CAPTURE ================= */
+  function countdown(seconds){
+    return new Promise(resolve=>{
+      let n = seconds;
+      countdownEl.textContent = n;
+      countdownEl.classList.remove("show"); void countdownEl.offsetWidth;
+      countdownEl.classList.add("show");
+      const iv = setInterval(()=>{
+        n--;
+        if(n <= 0){
+          clearInterval(iv);
+          countdownEl.classList.remove("show");
+          resolve();
+        } else {
+          countdownEl.textContent = n;
+          countdownEl.classList.remove("show"); void countdownEl.offsetWidth;
+          countdownEl.classList.add("show");
+        }
+      }, 800);
+    });
+  }
+
+  function doFlash(){
+    flashEl.classList.remove("pop"); void flashEl.offsetWidth;
+    flashEl.classList.add("pop");
+    playShutterSound();
+  }
+
+  // captures one still (returns dataURL) and schedules a live-photo clip
+  function captureStill(){
+    paintFrame(captureCtx, STILL_W, STILL_H, currentFrame);
+    return captureCanvas.toDataURL("image/jpeg", 0.9);
+  }
+
+  function scheduleLivePhoto(captureTime, onReady){
+    setTimeout(()=>{
+      const frames = rollingBuffer
+        .filter(e => e.t >= captureTime - LIVE_PRE_MS && e.t <= captureTime + LIVE_POST_MS)
+        .map(e => e.url);
+      onReady(frames);
+    }, LIVE_POST_MS + 250);
+  }
+
+  async function takeSinglePhoto(){
+    await countdown(3);
+    doFlash();
+    const captureTime = Date.now();
+    const still = captureStill();
+    const entry = { id: cryptoId(), still, live: null, createdAt: new Date(), strip:false };
+    photos.unshift(entry);
+    renderGallery();
+    scheduleLivePhoto(captureTime, frames=>{
+      entry.live = frames.length > 3 ? frames : null;
+      renderGallery();
+    });
+  }
+
+  async function takeStripPhoto(){
+    stripProgress.classList.add("show");
+    stripProgress.innerHTML = "";
+    for(let i=0;i<stripCount;i++){
+      const dot = document.createElement("i");
+      stripProgress.appendChild(dot);
+    }
+    const dots = [...stripProgress.children];
+    const shots = [];
+
+    for(let i=0;i<stripCount;i++){
+      await countdown(3);
+      doFlash();
+      paintFrame(captureCtx, STILL_W, STILL_H, currentFrame);
+      shots.push(captureCanvas.toDataURL("image/jpeg", 0.9));
+      dots[i].classList.add("done");
+      await new Promise(r=>setTimeout(r, 500));
+    }
+    stripProgress.classList.remove("show");
+
+    const design = selectedStripDesign();
+    const stripCanvas = document.createElement("canvas");
+    const padding = 22, headerH = 68, footerH = 44;
+    const cellH = 300, cellW = Math.round((STILL_W/STILL_H)*cellH);
+    const gap = 14;
+    stripCanvas.width = cellW + padding*2;
+    stripCanvas.height = headerH + (cellH+gap)*stripCount + footerH;
+
+    const sctx = stripCanvas.getContext("2d");
+    sctx.fillStyle = design.bg;
+    sctx.fillRect(0,0,stripCanvas.width,stripCanvas.height);
+
+    sctx.fillStyle = design.ink;
+    sctx.font = "600 22px Georgia, serif";
+    sctx.textAlign = "center";
+    sctx.fillText("FLASHBOOTH", stripCanvas.width/2, 40);
+
+    await Promise.all(shots.map((src, i)=>new Promise(res=>{
+      const img = new Image();
+      img.onload = ()=>{
+        const y = headerH + i*(cellH+gap);
+        sctx.drawImage(img, padding, y, cellW, cellH);
+        res();
+      };
+      img.src = src;
+    })));
+
+    sctx.fillStyle = design.accent;
+    sctx.fillRect(padding, stripCanvas.height-28, stripCanvas.width-padding*2, 2);
+    sctx.fillStyle = design.ink;
+    sctx.font = "italic 15px Georgia, serif";
+    sctx.fillText(new Date().toLocaleDateString(), stripCanvas.width/2, stripCanvas.height-12);
+
+    openStripEditor(stripCanvas);
+  }
+
+  function openStripEditor(sourceCanvas){
+    currentStripCanvas = sourceCanvas;
+    doodleHistory = [];
+    const editorCanvas = document.getElementById("stripEditorCanvas");
+    editorCanvas.width = sourceCanvas.width;
+    editorCanvas.height = sourceCanvas.height;
+    editorCanvas.getContext("2d").drawImage(sourceCanvas,0,0);
+    document.getElementById("stripEditorModal").classList.remove("hidden");
+  }
+
+  function closeStripEditor(){
+    document.getElementById("stripEditorModal").classList.add("hidden");
+    currentStripCanvas = null;
+    doodleHistory = [];
+  }
+
+  function saveEditedStrip(){
+    const editorCanvas = document.getElementById("stripEditorCanvas");
+    const stillFinal = editorCanvas.toDataURL("image/jpeg", 0.92);
+    const entry = { id: cryptoId(), still: stillFinal, live:null, createdAt:new Date(), strip:true };
+    photos.unshift(entry);
+    renderGallery();
+    closeStripEditor();
+  }
+
+  function saveOriginalStrip(){
+    if(!currentStripCanvas) return;
+    const stillFinal = currentStripCanvas.toDataURL("image/jpeg", 0.92);
+    const entry = { id: cryptoId(), still: stillFinal, live:null, createdAt:new Date(), strip:true };
+    photos.unshift(entry);
+    renderGallery();
+    closeStripEditor();
+  }
+
+  const editorCanvas = document.getElementById("stripEditorCanvas");
+  const editorCtx = editorCanvas.getContext("2d");
+  let drawing = false;
+  let lastPoint = null;
+
+  function editorPoint(e){
+    const rect = editorCanvas.getBoundingClientRect();
+    return {
+      x:(e.clientX-rect.left)*(editorCanvas.width/rect.width),
+      y:(e.clientY-rect.top)*(editorCanvas.height/rect.height)
+    };
+  }
+  function beginDoodle(e){
+    if(!currentStripCanvas) return;
+    drawing = true;
+    lastPoint = editorPoint(e);
+    doodleHistory.push(editorCtx.getImageData(0,0,editorCanvas.width,editorCanvas.height));
+  }
+  function moveDoodle(e){
+    if(!drawing) return;
+    const p = editorPoint(e);
+    editorCtx.strokeStyle = document.getElementById("doodleColor").value;
+    editorCtx.lineWidth = Number(document.getElementById("doodleSize").value);
+    editorCtx.lineCap = "round";
+    editorCtx.lineJoin = "round";
+    editorCtx.beginPath();
+    editorCtx.moveTo(lastPoint.x,lastPoint.y);
+    editorCtx.lineTo(p.x,p.y);
+    editorCtx.stroke();
+    lastPoint = p;
+  }
+  function endDoodle(){ drawing=false; lastPoint=null; }
+
+  editorCanvas.addEventListener("pointerdown", beginDoodle);
+  editorCanvas.addEventListener("pointermove", moveDoodle);
+  editorCanvas.addEventListener("pointerup", endDoodle);
+  editorCanvas.addEventListener("pointercancel", endDoodle);
+  editorCanvas.addEventListener("pointerleave", endDoodle);
+
+  document.getElementById("editorUndo").addEventListener("click", ()=>{
+    const previous = doodleHistory.pop();
+    if(previous) editorCtx.putImageData(previous,0,0);
+  });
+  document.getElementById("editorClear").addEventListener("click", ()=>{
+    if(currentStripCanvas){
+      editorCtx.clearRect(0,0,editorCanvas.width,editorCanvas.height);
+      editorCtx.drawImage(currentStripCanvas,0,0);
+      doodleHistory = [];
+    }
+  });
+  document.getElementById("editorSave").addEventListener("click", saveEditedStrip);
+  document.getElementById("editorSaveOriginal").addEventListener("click", saveOriginalStrip);
+  document.getElementById("editorClose").addEventListener("click", closeStripEditor);
+  document.getElementById("stripEditorModal").addEventListener("click", e=>{
+    if(e.target.id === "stripEditorModal") closeStripEditor();
+  });
+
+
+  function cryptoId(){
+    return "p_" + Date.now() + "_" + Math.random().toString(36).slice(2,8);
+  }
+
+  shutterBtn.addEventListener("click", async ()=>{
+    if(busy || !stream) return;
+    busy = true;
+    shutterBtn.disabled = true;
+    try{
+      if(mode === "single") await takeSinglePhoto();
+      else await takeStripPhoto();
+    } finally {
+      busy = false;
+      shutterBtn.disabled = false;
+    }
+  });
+
+  /* ================= GALLERY RENDER ================= */
+  function renderGallery(){
+    emptyState.style.display = photos.length ? "none" : "block";
+    galleryGrid.innerHTML = "";
+    photos.forEach(p=>{
+      const card = document.createElement("div");
+      card.className = "print";
+      card.innerHTML = `
+        ${p.live ? '<span class="live-pill">LIVE</span>' : ''}
+        <img src="${p.still}" alt="Photobooth print">
+        <div class="cap">${p.strip ? "Photo strip" : "Flashbooth"} &middot; ${p.createdAt.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</div>
+      `;
+      const imgEl = card.querySelector("img");
+      attachLiveHover(imgEl, p);
+      card.addEventListener("click", ()=> openLightbox(p));
+      galleryGrid.appendChild(card);
+    });
+  }
+
+  function attachLiveHover(imgEl, entry){
+    if(!entry.live) return;
+    let iv = null, idx = 0;
+    const play = ()=>{
+      if(iv) return;
+      idx = 0;
+      iv = setInterval(()=>{
+        imgEl.src = entry.live[idx % entry.live.length];
+        idx++;
+      }, 90);
+    };
+    const stop = ()=>{
+      clearInterval(iv); iv = null;
+      imgEl.src = entry.still;
+    };
+    imgEl.addEventListener("mouseenter", play);
+    imgEl.addEventListener("mouseleave", stop);
+    imgEl.addEventListener("touchstart", (e)=>{ e.preventDefault(); play(); setTimeout(stop, entry.live.length*90); }, {passive:false});
+  }
+
+  /* ================= LIGHTBOX ================= */
+  const lightbox = document.getElementById("lightbox");
+  const lightboxCard = document.getElementById("lightboxCard");
+
+  function openLightbox(entry){
+    lightboxCard.innerHTML = `
+      <button class="close-x" id="lbClose">&times;</button>
+      <img id="lbImg" src="${entry.still}" alt="Photobooth print">
+      <div class="lightbox-actions">
+        <button class="btn btn-primary" id="lbSavePhoto">Save Photo</button>
+        ${entry.live ? '<button class="btn btn-ghost" id="lbSaveLive">Save Live Video</button>' : ''}
+        <button class="btn btn-danger" id="lbDelete">Delete</button>
+      </div>
+    `;
+    lightbox.classList.remove("hidden");
+    document.getElementById("lbClose").addEventListener("click", closeLightbox);
+    lightbox.addEventListener("click", (e)=>{ if(e.target === lightbox) closeLightbox(); });
+
+    const imgEl = document.getElementById("lbImg");
+    attachLiveHover(imgEl, entry);
+
+    document.getElementById("lbSavePhoto").addEventListener("click", ()=>{
+      downloadDataUrl(entry.still, `flashbooth-${entry.id}.jpg`);
+    });
+    const saveLiveBtn = document.getElementById("lbSaveLive");
+    if(saveLiveBtn){
+      saveLiveBtn.addEventListener("click", ()=> exportLiveVideo(entry, saveLiveBtn));
+    }
+    document.getElementById("lbDelete").addEventListener("click", ()=>{
+      photos = photos.filter(p=>p.id !== entry.id);
+      renderGallery();
+      closeLightbox();
+    });
+  }
+  function closeLightbox(){ lightbox.classList.add("hidden"); }
+
+  function downloadDataUrl(dataUrl, filename){
+    const a = document.createElement("a");
+    a.href = dataUrl; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+
+  /* ================= LIVE VIDEO EXPORT (frame-sequence -> webm) ================= */
+  function exportLiveVideo(entry, btn){
+    if(!entry.live || !entry.live.length) return;
+    btn.disabled = true;
+    const originalLabel = btn.textContent;
+    btn.textContent = "Rendering...";
+
+    const exCanvas = document.createElement("canvas");
+    exCanvas.width = BUF_W; exCanvas.height = BUF_H;
+    const exCtx = exCanvas.getContext("2d");
+    const fps = Math.round(1000/BUFFER_TICK_MS);
+    const exStream = exCanvas.captureStream(fps);
+    const recorder = new MediaRecorder(exStream, { mimeType: "video/webm;codecs=vp8" });
+    const chunks = [];
+    recorder.ondataavailable = e => { if(e.data.size) chunks.push(e.data); };
+    recorder.onstop = ()=>{
+      const blob = new Blob(chunks, {type:"video/webm"});
+      const url = URL.createObjectURL(blob);
+      downloadDataUrl(url, `flashbooth-live-${entry.id}.webm`);
+      setTimeout(()=>URL.revokeObjectURL(url), 4000);
+      btn.disabled = false; btn.textContent = originalLabel;
+    };
+
+    let i = 0;
+    recorder.start();
+    const drawNext = ()=>{
+      if(i >= entry.live.length){ recorder.stop(); return; }
+      const img = new Image();
+      img.onload = ()=>{
+        exCtx.clearRect(0,0,exCanvas.width, exCanvas.height);
+        exCtx.drawImage(img, 0, 0, exCanvas.width, exCanvas.height);
+        i++;
+        setTimeout(drawNext, BUFFER_TICK_MS);
+      };
+      img.src = entry.live[i];
+    };
+    drawNext();
+  }
+
+  /* apply initial filter css to preview */
+  video.style.filter = FILTERS.find(f=>f.id==="normal").css;
+
+})();
+</script>
+</body>
+</html>
